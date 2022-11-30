@@ -1,11 +1,11 @@
 
-class ApiError(Exception):
+class QiwiAPIError(Exception):
     pass
 
 
-class WrongToken(ApiError):
+class TokenError(Exception):
     pass
 
 
-class PermError(ApiError):
+class PhoneError(Exception):
     pass
