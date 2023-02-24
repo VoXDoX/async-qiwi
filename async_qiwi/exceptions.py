@@ -7,5 +7,5 @@ class TokenError(Exception):
     pass
 
 
-class PhoneError(Exception):
+class AsyncQiwiError(Exception):
     pass

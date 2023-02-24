@@ -4,10 +4,11 @@ from time import localtime, strftime, time
 from aiohttp import ClientSession, ClientTimeout
 from typing import Dict, Union, Optional
 
+from .types import Bill
 from .exceptions import (
     QiwiAPIError,
     TokenError,
-    PhoneError
+    AsyncQiwiError
 )
 
 
@@ -26,7 +27,8 @@ class AsyncQiwi:
             self,
             phone: str = None,
             token: str = None,
-            secret_key: str = None) -> None:
+            secret_key: str = None
+    ) -> None:
 
         if not token and not secret_key:
             raise TokenError(
@@ -49,7 +51,7 @@ class AsyncQiwi:
         )
 
     @property
-    def random_id(self) -> str:
+    def randomId(self) -> str:
         return str(int(time() * 5))
 
     async def getBalance(
@@ -85,14 +87,14 @@ class AsyncQiwi:
 
         return account
 
-    async def createBill(
+    async def create(
             self,
             amount: Union[float, int],
             lifetime: int = 15,
             currency: str = "RUB",
             comment: Optional[str] = None,
             bill_id: Optional[int] = None
-    ) -> Dict:
+    ) -> Bill:
         """
         Создание P2P счета для оплаты
         :param amount: сумма счета
@@ -105,8 +107,13 @@ class AsyncQiwi:
         :type comment: Optional[str]
         :param bill_id: уникальный ID счета
         :type bill_id: Optional[int]
-        :return: Dict
+        :return: Bill
         """
+        if currency not in ["RUB", "KZT"]:
+            raise AsyncQiwiError(
+                f'Currency must be "RUB" or "KZT", not "{currency}"'
+            )
+
         lifetime = strftime(
             "%Y-%m-%dT%H:%M:%S+03:00", localtime(time() + lifetime * 60)
         )
@@ -120,28 +127,44 @@ class AsyncQiwi:
         }
         self.session.headers["Authorization"] = "Bearer {}".format(self._SECRET_KEY_)
         response = await self.__request(
-            url="https://api.qiwi.com/partner/bill/v1/bills/{}".format(bill_id or self.random_id),
+            url="https://api.qiwi.com/partner/bill/v1/bills/{}".format(bill_id or self.randomId),
             method="PUT",
             json=data
         )
 
-        return response
+        return Bill(response)
 
-    async def checkingBill(
+    async def status(
             self,
-            bill_id: int
-    ) -> Dict:
+            bill_id: Union[str, int]
+    ) -> Bill:
         """
         Проверяем оплачен ли P2P Qiwi счет по его ID
         :param bill_id: ID выставленного счета
-        :type bill_id: int
+        :type bill_id: str or int
         :return: Dict
         """
         self.session.headers["Authorization"] = "Bearer {}".format(self._SECRET_KEY_)
         response = await self.__request(
             url="https://api.qiwi.com/partner/bill/v1/bills/{}".format(bill_id)
         )
-        return response
+        return Bill(response)
+
+    async def reject(
+            self,
+            bill_id: Union[str, int]
+    ) -> Bill:
+        """
+
+        :param bill_id: ID выставленного счета
+        :type bill_id: str or int
+        :return: Dict
+        """
+        self.session.headers["Authorization"] = "Bearer {}".format(self._SECRET_KEY_)
+        response = await self.__request(
+            url="https://api.qiwi.com/partner/bill/v1/bills/{}/reject".format(bill_id)
+        )
+        return Bill(response)
 
     async def pay(
         self,
@@ -159,7 +182,7 @@ class AsyncQiwi:
         :return: dict
         """
         if not number:
-            raise PhoneError(
+            raise AsyncQiwiError(
                 "Invalid Number! Please, enter the number to which you want to transfer money."
             )
 
@@ -169,7 +192,7 @@ class AsyncQiwi:
             )
 
         data = {
-            "id": self.random_id,
+            "id": self.randomId,
             "comment": comment or "",
             "fields": {
                 "account": number
