@@ -2,12 +2,12 @@
 
 ## Windows
 ```
-pip install asyncqiwi
+pip install async-qiwi
 ```
 
 ## Linux
 ```
-pip3 install asyncqiwi
+pip3 install async-qiwi
 ```
 ![изображение](https://imgur.com/kFB0bd4.png)
 
